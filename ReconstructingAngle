@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import math
 
 # This path will need to be changed to match whereever the output file from the geant4 simulation is put.
-path = '/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/output.txt'
+path = 'G4Basic/build/output.txt'
 
 f = open(path, "r")
 
