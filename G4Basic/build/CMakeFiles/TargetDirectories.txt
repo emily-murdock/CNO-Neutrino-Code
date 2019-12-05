@@ -1,0 +1,8 @@
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/install/local.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/install/strip.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/install.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/list_install_components.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/rebuild_cache.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/edit_cache.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/B1.dir
+/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/CMakeFiles/exampleB1.dir

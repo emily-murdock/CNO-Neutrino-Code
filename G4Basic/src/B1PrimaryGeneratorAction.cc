@@ -1,0 +1,244 @@
+//
+// ********************************************************************
+// * License and Disclaimer                                           *
+// *                                                                  *
+// * The  Geant4 software  is  copyright of the Copyright Holders  of *
+// * the Geant4 Collaboration.  It is provided  under  the terms  and *
+// * conditions of the Geant4 Software License,  included in the file *
+// * LICENSE and available at  http://cern.ch/geant4/license .  These *
+// * include a list of copyright holders.                             *
+// *                                                                  *
+// * Neither the authors of this software system, nor their employing *
+// * institutes,nor the agencies providing financial support for this *
+// * work  make  any representation or  warranty, express or implied, *
+// * regarding  this  software system or assume any liability for its *
+// * use.  Please see the license in the file  LICENSE  and URL above *
+// * for the full disclaimer and the limitation of liability.         *
+// *                                                                  *
+// * This  code  implementation is the result of  the  scientific and *
+// * technical work of the GEANT4 collaboration.                      *
+// * By using,  copying,  modifying or  distributing the software (or *
+// * any work based  on the software)  you  agree  to acknowledge its *
+// * use  in  resulting  scientific  publications,  and indicate your *
+// * acceptance of all terms of the Geant4 Software license.          *
+// ********************************************************************
+//
+//
+/// \file B1PrimaryGeneratorAction.cc
+/// \brief Implementation of the B1PrimaryGeneratorAction class
+
+#include "B1PrimaryGeneratorAction.hh"
+
+#include "G4LogicalVolumeStore.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Box.hh"
+#include "G4RunManager.hh"
+#include "G4ParticleGun.hh"
+#include "G4ParticleTable.hh"
+#include "G4ParticleDefinition.hh"
+#include "G4SystemOfUnits.hh"
+#include "Randomize.hh"
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+B1PrimaryGeneratorAction::B1PrimaryGeneratorAction()
+: G4VUserPrimaryGeneratorAction(),
+  fParticleGun(0)
+{
+  G4int n_particle = 1;
+  fParticleGun  = new G4ParticleGun(n_particle);
+
+  // default particle kinematic
+  G4ParticleTable* particleTable = G4ParticleTable::GetParticleTable();
+  G4String particleName;
+  G4ParticleDefinition* particle
+    = particleTable->FindParticle(particleName="e-");
+  fParticleGun->SetParticleDefinition(particle);
+//  fParticleGun->SetParticleMomentumDirection(G4ThreeVector(0.,0.,1.));
+
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+B1PrimaryGeneratorAction::~B1PrimaryGeneratorAction()
+{
+  delete fParticleGun;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+G4double B1PrimaryGeneratorAction:: NeutrinoPolyval( G4double x )
+{
+  // These are the polynomial coefficients of the total CNO neutrino spectrum - split in two parts at 1.2 MeV
+  G4double coeffs_1[11] = { -9.34279513e5, 9.87084941e7, 7.52654458e8, 2.26155429e10, -1.46600418e11,
+    4.83236260e11, -9.72455708e11, 1.21823867e12, -9.25563057e11, 3.90222578e11, -7.00421109e10};
+  G4double coeffs_2[5] = { -8.31851109e9, 2.40697952e10, -2.53470384e10, 1.18639244e10, -2.10788109e9 };
+  G4double enu = 0.;
+  if(x >= 0 && x<= 1.2) // 1.2 is the cut off point between the two parts of the polynomial.
+  {
+    for (G4int i = 0; i < 11; i++)
+    {
+      G4double a = coeffs_1[i]*pow(x , i);
+      enu += a;
+    }
+    return enu;
+  } else if(x > 1.2 && x<= 1.75)
+  {
+    for (G4int i = 0; i < 5; i++)
+    {
+      G4double a = coeffs_2[i]*pow(x , i);
+      enu += a;
+    }
+    return enu;
+  }
+  else {
+    return 0.;
+  }
+}
+
+G4double B1PrimaryGeneratorAction:: ShootNeutrino()
+{
+  /*
+  G4bool no_exit = true;
+  G4double proposed_energy =  G4UniformRand() * 1.75;
+  G4double max_flux = 568928963.88; // This is the maximum point on the CNO flux distribution.
+  G4double r = G4UniformRand()* max_flux;
+  while (no_exit == true)
+  {
+      if (r < NeutrinoPolyval(proposed_energy))
+      {
+          return proposed_energy;
+          no_exit = false;
+      } else {
+        proposed_energy =  G4UniformRand() * 1.75;
+        r = G4UniformRand()* max_flux;
+      }
+  }
+*/
+  G4double enu = 1.2;
+  return enu;
+}
+
+G4double B1PrimaryGeneratorAction:: ElectronAngleXsec( G4double costheta, G4double enu)
+{
+  G4double g1 = 0.73;
+  G4double g2 = 0.23;
+  G4double sigma0 = 88.06; //88.06e-46 # cm2
+  G4double me = 0.511; //Mev
+  G4double a = sigma0 * 4 * pow(enu, 2) * pow((me + enu), 2) * costheta;
+  G4double b = pow((me + enu), 2) - (pow(enu, 2) * pow(costheta, 2));
+  G4double c = 1 - (2 * me * enu * pow(costheta, 2))/b;
+  G4double d = 2 * pow(enu, 2) * pow(costheta, 2);
+  return (a / (pow(b, 2))) * (pow(g1,2) + pow(g2, 2) * pow(c, 2) - g1*g2*(d/b));
+}
+
+G4double B1PrimaryGeneratorAction:: ShootECosAngle()
+{
+  /*G4bool no_exit = true;
+  G4double proposed_angle =  G4UniformRand();
+  G4double r = G4UniformRand()*ElectronAngleXsec(1.0, enu);
+  while (no_exit == true)
+  {
+      if (r < ElectronAngleXsec(proposed_angle, enu))
+      {
+          return proposed_angle;
+          no_exit = false;
+      } else {
+        proposed_angle =  G4UniformRand();
+        r = G4UniformRand()*ElectronAngleXsec(1.0, enu);
+      }
+  }
+*/
+  G4double angle = 0.9;
+  return angle;
+}
+
+
+
+G4double B1PrimaryGeneratorAction:: ElectronEnergy( G4double costheta, G4double enu)
+{
+  G4double me = 0.511;
+  G4double a = 2 * me * pow(enu, 2) * pow(costheta, 2);
+  G4double b = pow((me + enu), 2) - (pow(enu, 2) * pow(costheta, 2));
+  return a/b;
+}
+
+
+/*
+
+G4double B1PrimaryGeneratorAction::escatpolyval( G4double x ) // this should evaluate the polynomial at any value of cos theta.
+{
+  G4double coeff_0 = 0.0303348; // These are polynomial coefficients of the electron scattering graph.
+  G4double coeff_1 = 0.9136031;
+  G4double coeff_2 = 3.81221346;
+  G4double coeff_3 = -6.93746649;
+  G4double coeff_4 = 4.91634504;
+  if (x>=0 && x<=1)
+  {
+    return coeff_0 + coeff_1*x + coeff_2*pow(x,2.0) + coeff_3*pow(x,3.0) + coeff_4*pow(x,4.0);
+  } else
+  {
+    return 0.;
+  }
+}
+*/
+/*
+G4double B1PrimaryGeneratorAction::shoot_EScatCos() // This generates cos_angles distributed according to the escat plot using acceptance/rejection.
+{
+    G4bool no_exit = true;
+    G4double proposed_angle =  G4UniformRand();
+    G4double r = G4UniformRand()*escatpolyval(1.0);
+    while (no_exit == true)
+    {
+        if (r < escatpolyval(proposed_angle))
+        {
+            return proposed_angle;
+            no_exit = false;
+        } else {
+          proposed_angle =  G4UniformRand();
+          r = G4UniformRand()*escatpolyval(1.0);
+        }
+    }
+}
+*/
+
+void B1PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
+{
+  //this function is called at the begining of ecah event
+  //
+  G4double enu = ShootNeutrino();
+  G4double costheta = ShootECosAngle();
+  G4double theta = acos( costheta );
+  G4double sinphi = G4UniformRand();
+  G4double phi = asin(sinphi);      // phi is the angle around the z axis (random)
+  G4double xvec = sin(theta) * cos(phi);  // cartesian coordinates for the electron momentum direction.
+  G4double yvec = sin(theta) * sin(phi);
+  G4double zvec = costheta;
+  G4cout << "Neutrino Energy: " << enu << G4endl;
+  G4cout << NeutrinoPolyval(1.5) << G4endl;
+  std::ofstream ofs;
+  ofs.open ("output.txt", std::ofstream::out | std::ofstream::app);
+  ofs << "Neutrino Energy = " << enu << G4endl;
+  ofs << "Angle = " << theta << G4endl;
+  ofs.close();
+/*
+  G4double size = 0.8;
+  G4double x0 = size * envSizeXY * (G4UniformRand()-0.5);
+  G4double y0 = size * envSizeXY * (G4UniformRand()-0.5);
+  G4double z0 = -0.5 * envSizeZ;
+*/
+
+  G4double e_energy = ElectronEnergy(costheta, enu);
+  G4double x0 = 0;
+  G4double y0 = 0;
+  G4double z0 = 0;
+  fParticleGun->SetParticleMomentumDirection(G4ThreeVector(xvec, yvec, zvec));
+  fParticleGun->SetParticleEnergy(e_energy *MeV);
+  // fParticleGun->SetParticleEnergy(100. *MeV);
+  fParticleGun->SetParticlePosition(G4ThreeVector(x0,y0,z0));
+
+  fParticleGun->GeneratePrimaryVertex(anEvent);
+
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
