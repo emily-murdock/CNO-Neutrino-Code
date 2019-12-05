@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Aug 13 11:28:25 2019
+
+@author: emily
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Aug  6 14:15:51 2019
+
+@author: emily
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+
+path = '/Users/emily/Documents/Harvard/Freshman_Year/Summer/geant4/G4Basic/build/output.txt'
+
+f = open(path, "r")
+
+flines = f.readlines()
+
+
+def getendpointline(event): # This takes in an event number and returns the index of teh lines that the finap coordinate for that event is on. 
+    for i in range(len(flines)):
+        endrun = 'End run ' + str(event) + '\n'
+        if endrun in flines[i]:
+            endpointline = i-1
+            return endpointline
+    
+def getendpoint(event): # This returns the end point of a given event as a list of floats
+    endpointstr = flines[getendpointline(event)]
+    endpoint = endpointstr[1:(len(endpointstr)-2)]
+    list1 = endpoint.split(",")
+    list2 = []
+    for i in list1:
+        list2.append(float(i))
+    return list2
+
+def getstartpointline(event):
+    for i in range(len(flines)):
+        startrun = 'Start run ' + str(event) + '\n'
+        if startrun in flines[i]:
+            startpointline = i+2
+            return startpointline
+
+def getstartpoint(event):
+    startpointstr = flines[getstartpointline(event)]
+    if 'End run' in startpointstr:
+        return [0.0,0.0,0.0]
+    else:
+        startpoint = startpointstr[1:(len(startpointstr)-2)]
+        list1 = startpoint.split(",")
+        list2 = []
+        for i in list1:
+            list2.append(float(i))
+        return list2
+
+def getangleline(event):
+    for i in range(len(flines)):
+        startrun = 'Start run ' + str(event) + '\n'
+        if startrun in flines[i]:
+            angleline = i-1
+            return angleline
+
+def gettrueangle(event):
+    anglestr = flines[getangleline(event)]
+    angle = anglestr[8:(len(anglestr)-1)]
+    x = float(angle)
+    a = float("{0:.5f}".format(x))
+    return a
+
+def getendpointangle(event):
+    x = getendpoint(event)[0]
+    y = getendpoint(event)[1]
+    z = getendpoint(event)[2]
+    opp = math.sqrt((x**2) + (y**2))
+    angle = math.atan(opp/z)
+    x = float(angle)
+    a = float("{0:.5f}".format(x))
+    return a
+
+def getstartpointangle(event):
+    x = getstartpoint(event)[0]
+    y = getstartpoint(event)[1]
+    z = getstartpoint(event)[2]
+    opp = math.sqrt((x**2) + (y**2))
+    angle = math.atan(opp/z)
+    x = float(angle)
+    a = float("{0:.5f}".format(x))
+    return a
+
+
+def checkvalid(event): #Event will only be counted if their final step is not 0,0,0 and their path length is greater than 1mm
+    x = getendpoint(event)[0]
+    y = getendpoint(event)[1]
+    z = getendpoint(event)[2]
+    if getstartpoint(event) == [0.0,0.0,0.0]:
+        return False
+    elif (x**2 + y**2 + z**2) < 1:
+        return False
+    else:
+        return True
+
+def getenuline(event):
+    for i in range(len(flines)):
+        startrun = 'Start run ' + str(event) + '\n'
+        if startrun in flines[i]:
+            enuline = i-2
+            return enuline
+        
+def getenu(event):
+    enustr = flines[getenuline(event)]
+    enu = enustr[18:(len(enustr)-1)]
+    x = float(enu)
+    a = float("{0:.5f}".format(x))
+    return a
+        
+
+anglediffs = []
+for i in range(1,2000):
+   if checkvalid(i) == True:
+        difference = gettrueangle(i) - getendpointangle(i)
+        a = float("{0:.5f}".format(difference))
+        b = a*(180/(np.pi))
+        anglediffs.append(np.absolute(b))
+
+
+
+#fig1 = plt.figure(figsize=(12,8))
+#ax1 = fig1.add_subplot(1,1,1)
+
+#n, bins, patches = plt.hist(anglediffs, bins=50, range = [-1,1])
+#plt.ylabel('Frequency',fontsize=18)
+#plt.xlabel('Angle difference (rad)',fontsize=18)
+#plt.title('First Point Angle Difference\n 1036 events', fontsize = 22)
+#plt.tick_params(labelsize=15)
+#plt.show()
+#fig1.savefig('anglediffsstartpoint.jpg')
+
+
+tracklength = []
+for i in range(1, 2000):
+   if checkvalid(i) == True:
+       x = getendpoint(i)[0]
+       y = getendpoint(i)[1]
+       z = getendpoint(i)[2]
+       a = (x**2 + y**2 + z**2)
+       tracklength.append(a)
+
+
+#fig2 = plt.figure(figsize = (12,8))
+#ax2 = fig2.add_subplot(1,1,1)
+#n, bins, patches = plt.hist(tracklength, bins=50, range = [0,50])
+#plt.ylabel('Frequency',fontsize=18)
+#plt.xlabel('Track Length (mm)',fontsize=18)
+#plt.title('First Point Track Length\n 1036 events', fontsize = 22)
+#plt.tick_params(labelsize=15)
+#plt.show()
+#fig2.savefig('firstpointtracklengthzoom.jpg')
+
+
+#neutrinoenergies = []
+#for i in range(1, 2000):
+#    if checkvalid(i) == True:
+#        a = getenu(i)
+#        neutrinoenergies.append(a)
+#        
+#fig3 = plt.figure(figsize = (12,8))
+#ax3 = fig3.add_subplot(1,1,1)
+#n, bins, patches = plt.hist(neutrinoenergies, bins=50)
+#plt.ylabel('Frequency',fontsize=18) 
+#plt.xlabel('Neutrino Energy (MeV)',fontsize=18)
+#plt.title('Neutrino energy (using first points)\n 1036 events', fontsize = 22)
+#plt.tick_params(labelsize=15)
+#plt.show()
+#fig3.savefig('firstpointneutrinoenergy.jpg')     
+
+fig4 = plt.figure(figsize = (8,8))
+ax4 = fig4.add_subplot(1,1,1)
+plt.hist2d(tracklength, anglediffs, bins=(50, 50), range = [[0, 20], [0, 135]], cmap=plt.cm.jet)
+plt.title('Track Length/Angle Resolution\n 1104 events', fontsize = 22)
+plt.ylabel('Angle resolution (deg)',fontsize=18)
+plt.xlabel('Track Length (mm)',fontsize=18)
+plt.tick_params(labelsize=15)
+plt.show()
+fig4.savefig('angledifstracklengthabs.jpg') 

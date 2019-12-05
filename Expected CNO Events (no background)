@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jun 19 09:32:16 2019
+
+@author: emily
+"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+import urllib.request
+import math
+
+
+# Pull data from N13 and scale it (also change from seconds to years)
+f= urllib.request.urlopen("http://www.sns.ias.edu/~jnb/SNdata/Export/CNOspectra/n13.dat")
+page1 = f.read().decode("utf-8")
+f.close()
+
+linesN = page1.splitlines()
+
+rawflux_n13 = []
+rawenergy_n13 = []
+for line in range(len(linesN)):
+    a = linesN[line]
+    rawenergy_n13.append(float(a[3:13]))
+    rawflux_n13.append(float(a[15:]))
+
+flux_n13 = []
+for n in range(len(rawflux_n13)):
+    flux_n13.append(rawflux_n13[n]*2.78e8) 
+    
+#plt.plot(rawenergy_n13, flux_n13)
+    
+    
+#Pull data from O15 and scale it
+g = urllib.request.urlopen("http://www.sns.ias.edu/~jnb/SNdata/Export/CNOspectra/o15.dat")
+page2 = g.read().decode("utf-8")
+g.close()
+
+linesO = page2.splitlines()
+
+rawflux_o15 = []
+rawenergy_o15 = []
+for line in range(len(linesO)):
+    a = linesO[line]
+    rawenergy_o15.append(float(a[3:13]))
+    rawflux_o15.append(float(a[15:]))
+    
+flux_o15 = []
+for n in range(len(rawflux_o15)):
+    flux_o15.append(rawflux_o15[n]*2.05e8)
+    
+#plt.plot(rawenergy_o15, flux_o15)    
+    
+#Pull data from F17 and scale it
+h = urllib.request.urlopen("http://www.sns.ias.edu/~jnb/SNdata/Export/CNOspectra/f17.dat")
+page3 = h.read().decode("utf-8")
+h.close()
+
+linesF = page3.splitlines()
+
+rawflux_f17 = []
+rawenergy_f17 = []
+for line in range(len(linesF)):
+    a = linesF[line]
+    rawenergy_f17.append(float(a[3:13]))
+    rawflux_f17.append(float(a[15:]))
+
+flux_f17 = []
+for n in range(len(rawflux_f17)):
+    flux_f17.append(rawflux_f17[n]*5.92e6)
+    
+#plt.plot(rawenergy_f17, flux_f17)
+
+#plt.xscale('log')
+#plt.yscale('log')
+#plt.xlim(1e-1,1e1)
+#plt.ylim(1e2,1e10)
+
+#find polynomial approximations for each function
+
+pn13 = np.polyfit(rawenergy_n13, flux_n13,5)
+po15 = np.polyfit(rawenergy_o15, flux_o15,5)
+pf17 = np.polyfit(rawenergy_f17, flux_f17,5)
+
+#find total flux
+
+energyuo = rawenergy_n13 + rawenergy_o15 + rawenergy_f17
+energyuo.sort()
+
+totenergy = []
+totflux = []
+
+for x in energyuo:
+    if x <= 1.199:
+        totenergy.append(x)
+        a = np.polyval(pn13,x)
+        b = np.polyval(po15,x)
+        c = np.polyval(pf17,x)
+        newflux = a + b + c
+        totflux.append(newflux)
+    elif x<= 1.732:
+        totenergy.append(x)
+        b = np.polyval(po15,x)
+        c = np.polyval(pf17,x)
+        newflux = b + c
+        totflux.append(newflux)
+    else:
+        totenergy.append(x)
+        c = np.polyval(pf17,x)
+        newflux = c
+        totflux.append(newflux)
+
+#plt.plot(totenergy,totflux)
+
+
+# Define constants with consistent units (metres, seconds, MeV)
+
+theta = math.asin(math.sqrt(0.307))
+cos2theta = math.cos(2*theta)
+
+msq = 7.53e-17  #in MeV^2
+
+Gf = (1.66378e-11)*((1.973e-13)**3) # In MeV*m^3
+
+Ne = 6.267e31 #In electrons per m^3 at the sun's core
+
+V = Gf*Ne*(math.sqrt(2)) #V is in MeV
+
+def cos2thetam(x):
+    c2tm = []
+    for i in range(len(x)):
+        c2tm.append((cos2theta - (2*x[i]*V)/(msq))/(math.sqrt((cos2theta - (2*x[i]*V)/(msq))**2 + (math.sin(2*theta))**2)))
+    return c2tm
+
+P_ee = 0.5*(1 + (np.array(cos2thetam(totenergy)))*(cos2theta))
+
+#plt.figure(1)
+#plt.plot(E, P_ee)
+
+
+P_em = 1 - P_ee
+
+#Put this with cm, MeV
+R = (9.5e-45)*(np.array(totflux))*(P_ee) + (1.6e-45)*(np.array(totflux))*(P_em)
+
+#plt.plot(totenergy, R)
+#plt.yscale('log')
+
+
+#Now multiply by number of targets and  number of seconds per year
+
+# Number of seconds per year = 31557600
+# Number of targets per 100 ton = 3.307e31
+
+totflux_y = 31557600*np.array(totflux)
+
+
+# Also split probabilities beterrn electron neutrinos and other neutrinos. 
+
+
+plt.figure(2)
+
+ax2 = plt.axes()
+plt.yscale('log')
+ax2.set_xlabel('Neutrino Energy (MeV)')
+ax2.set_ylabel('Events per 100 ton per year')
+ax2.set_title('Events per 100 ton per year')
+
+R_e = (9.5e-45)*(totflux_y)*(P_ee)*3.307e31
+
+R_mt = (1.6e-45)*(totflux_y)*(P_em)*3.307e31
+
+R_tot = R_e + R_mt
+
+plt.plot(totenergy, R_e, label = r'$\nu_e$')
+plt.plot(totenergy, R_mt, label = r'$\nu_{\mu}, \nu_{\tau}$')
+plt.plot(totenergy, R_tot, label = 'Total')
+
+plt.legend()
+plt.savefig('Graph 1d - Events per year.jpg', dpi = 300)
+
+
+# Calculating expected events for NEXT and its prototypes
+#Integral caldulations completed with np.trapz
+
+R_demo = (R_tot/3.307e31)*2.447e26
+R_white = R_demo * 5
+R_next = R_demo * 100
+R_1ton = R_demo*1000
